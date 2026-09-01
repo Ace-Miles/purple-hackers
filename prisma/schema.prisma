@@ -1,0 +1,390 @@
+// Purple Hackers - Community Database Schema
+// Uses separate 'purple_hackers' schema to isolate from Acemiles OS tables
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas  = ["purple_hackers"]
+}
+
+// ===== USER SYSTEM =====
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String?
+  username      String    @unique
+  avatar        String?   @default("")
+  bio           String?   @default("")
+  reputation    Int       @default(0)
+  role          Role      @default(MEMBER)
+  status        Status    @default(ACTIVE)
+  title         String?
+  github        String?
+  website       String?
+  location      String?
+  joinedAt      DateTime  @default(now())
+  lastSeen      DateTime? @default(now())
+  postsCount     Int       @default(0)
+  commentsCount  Int       @default(0)
+  followersCount Int       @default(0)
+  followingCount Int       @default(0)
+  isFounder    Boolean   @default(false)
+  badges       String[]  @default([])
+  acemilesOsConnected Boolean @default(false)
+  acemilesOsApiKey    String?
+
+  posts         Post[]
+  comments      Comment[]
+  chatMessages  ChatMessage[]
+  chatRooms     ChatRoomUser[]
+  reportsFiled  Report[]
+  warnings      Warning[]
+  bans          Ban[]
+  reactions     Reaction[]
+  notifications Notification[]
+  sessions      Session[]
+  accounts      Account[]
+  following     Follow[] @relation("Follower")
+  followers     Follow[] @relation("Following")
+
+  @@schema("purple_hackers")
+  @@map("users")
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@schema("purple_hackers")
+  @@map("follows")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@schema("purple_hackers")
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@schema("purple_hackers")
+  @@map("sessions")
+}
+
+// ===== FORUM SYSTEM =====
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  color       String   @default("#a855f7")
+  order       Int      @default(0)
+  isLocked    Boolean  @default(false)
+  postsCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  posts       Post[]
+  
+  @@schema("purple_hackers")
+  @@map("categories")
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String
+  mediaUrls   String[] @default([])
+  authorId    String
+  categoryId  String
+  tags        String[] @default([])
+  views       Int      @default(0)
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  isDeleted   Boolean  @default(false)
+  editedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  
+  author      User       @relation(fields: [authorId], references: [id])
+  category    Category   @relation(fields: [categoryId], references: [id])
+  comments    Comment[]
+  reactions   Reaction[]
+  
+  @@index([categoryId])
+  @@index([authorId])
+  @@schema("purple_hackers")
+  @@map("posts")
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  content     String
+  authorId    String
+  postId      String
+  parentId    String?
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  isDeleted   Boolean  @default(false)
+  editedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+  
+  author      User      @relation(fields: [authorId], references: [id])
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+  reactions   Reaction[]
+  
+  @@index([postId])
+  @@index([authorId])
+  @@schema("purple_hackers")
+  @@map("comments")
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String
+  postId    String?
+  commentId String?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@schema("purple_hackers")
+  @@map("reactions")
+}
+
+// ===== CHAT SYSTEM =====
+model ChatRoom {
+  id          String       @id @default(cuid())
+  name        String
+  type        ChatRoomType @default(PUBLIC)
+  description String?
+  icon        String?
+  memberCount Int          @default(0)
+  createdAt   DateTime     @default(now())
+  messages    ChatMessage[]
+  members     ChatRoomUser[]
+  
+  @@schema("purple_hackers")
+  @@map("chat_rooms")
+}
+
+model ChatRoomUser {
+  id         String    @id @default(cuid())
+  roomId     String
+  userId     String
+  role       ChatRole  @default(MEMBER)
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime?
+  
+  room       ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([roomId, userId])
+  @@schema("purple_hackers")
+  @@map("chat_room_users")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  mediaUrl  String?
+  userId    String
+  roomId    String
+  type      String   @default("text")
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  
+  @@index([roomId])
+  @@schema("purple_hackers")
+  @@map("chat_messages")
+}
+
+// ===== MODERATION SYSTEM =====
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  targetType  ReportTarget
+  targetId    String
+  reason      ReportReason
+  description String?
+  status      ReportStatus @default(OPEN)
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  action      String?
+  createdAt   DateTime     @default(now())
+  
+  reporter    User    @relation(fields: [reporterId], references: [id])
+  
+  @@schema("purple_hackers")
+  @@map("reports")
+}
+
+model Warning {
+  id        String    @id @default(cuid())
+  userId    String
+  reason    String
+  issuedBy  String
+  points    Int       @default(1)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@schema("purple_hackers")
+  @@map("warnings")
+}
+
+model Ban {
+  id        String    @id @default(cuid())
+  userId    String
+  reason    String
+  issuedBy  String
+  type      BanType   @default(TEMPORARY)
+  expiresAt DateTime?
+  isLifted  Boolean    @default(false)
+  liftedBy  String?
+  liftedAt  DateTime?
+  createdAt DateTime  @default(now())
+  
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@schema("purple_hackers")
+  @@map("bans")
+}
+
+// ===== NOTIFICATIONS =====
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  content   String?
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@schema("purple_hackers")
+  @@map("notifications")
+}
+
+// ===== ENUMS =====
+enum Role {
+  FOUNDER
+  ADMIN
+  MODERATOR
+  MEMBER
+  BANNED
+  
+  @@schema("purple_hackers")
+}
+
+enum Status {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  INACTIVE
+  
+  @@schema("purple_hackers")
+}
+
+enum ChatRoomType {
+  PUBLIC
+  PRIVATE
+  DM
+  ANNOUNCEMENT
+  
+  @@schema("purple_hackers")
+}
+
+enum ChatRole {
+  MEMBER
+  MODERATOR
+  ADMIN
+  
+  @@schema("purple_hackers")
+}
+
+enum ReportTarget {
+  POST
+  COMMENT
+  USER
+  CHAT
+  
+  @@schema("purple_hackers")
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  ILLEGAL_CONTENT
+  MALWARE
+  NSFW
+  OFF_TOPIC
+  OTHER
+  
+  @@schema("purple_hackers")
+}
+
+enum ReportStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+  
+  @@schema("purple_hackers")
+}
+
+enum BanType {
+  TEMPORARY
+  PERMANENT
+  SHADOW
+  
+  @@schema("purple_hackers")
+}
