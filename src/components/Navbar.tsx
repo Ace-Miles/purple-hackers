@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
-import { Home, Users, Terminal, Shield, Menu, X, Bug, User as UserIcon, LogOut, Settings, MessageCircle, Wrench, Plus, BookOpen, Briefcase, ScrollText, Crown, BadgeCheck } from "lucide-react";
+import { Home, Users, Terminal, Shield, Menu, X, Bug, User as UserIcon, LogOut, Settings, MessageCircle, Wrench, Plus, BookOpen, Briefcase, ScrollText, Crown, BadgeCheck, Gift } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { BackButton } from "@/components/BackButton";
 
@@ -54,8 +54,10 @@ export function Navbar() {
 
   const navLinks = [
     { href: "/forum", label: "Forum", icon: Terminal },
+    { href: "/tools", label: "Tools", icon: Wrench },
     { href: "/resources", label: "Resources", icon: BookOpen },
     { href: "/jobs", label: "Jobs", icon: Briefcase },
+    { href: "/referrals", label: "Referrals", icon: Gift },
     { href: "/rules", label: "Rules", icon: ScrollText },
   ];
 
@@ -172,9 +174,17 @@ export function Navbar() {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-purple-500/10 transition-all">
             <Settings size={18} /> Settings
           </Link>
+          <Link href="/tools" onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-purple-500/10 transition-all">
+            <Wrench size={18} /> Cyber Tools
+          </Link>
           <Link href="/resources" onClick={() => setMenuOpen(false)}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-purple-500/10 transition-all">
             <BookOpen size={18} /> Resources
+          </Link>
+          <Link href="/referrals" onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-purple-500/10 transition-all">
+            <Gift size={18} /> Referrals
           </Link>
           <Link href="/jobs" onClick={() => setMenuOpen(false)}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:bg-purple-500/10 transition-all">

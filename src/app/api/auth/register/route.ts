@@ -37,11 +37,16 @@ export async function POST(req: Request) {
       }
     }
     
+    // Generate a password reset token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(12).toString('hex').toUpperCase();
+    
     const user = await prisma.user.create({
       data: {
         username, email, password: hashed,
         referralCode: newReferralCode,
         referredBy: referrerId,
+        passwordResetToken: resetToken,
       },
     });
 
@@ -56,16 +61,26 @@ export async function POST(req: Request) {
         // Increment referrer's count
         const referrer = await prisma.user.findUnique({
           where: { id: referrerId },
-          select: { referralCount: true, badges: true, reputation: true },
+          select: { referralCount: true, badges: true, reputation: true, username: true },
         });
         
         if (referrer) {
           const newCount = referrer.referralCount + 1;
           let newBadges = [...referrer.badges];
           
-          // Award Purple O.G badge at 2 referrals
-          if (newCount >= 2 && !newBadges.some(b => b.includes("Purple O.G") || b.includes("Purple OG"))) {
+          // Award Purple O.G badge at 5 referrals
+          if (newCount >= 5 && !newBadges.some(b => b.includes("Purple O.G") || b.includes("Purple OG"))) {
             newBadges.push("💜 Purple O.G");
+            // Notify about the milestone
+            await prisma.notification.create({
+              data: {
+                userId: referrerId,
+                type: "badge",
+                title: "You earned the Purple O.G Badge! 💜",
+                content: "You've referred 5 members! You now have the Purple O.G Badge on your profile.",
+                link: `/u/${referrer.username}`,
+              },
+            }).catch(() => {});
           }
           
           // Award reputation for referral
@@ -135,30 +150,35 @@ export async function POST(req: Request) {
       }
     }
 
-    // Send welcome DM from Purple AI bot
+    // Send welcome DM from PurpleAI user (now lives in DMs, not chat rooms)
     try {
-      // Find or create a DM room between the user and the Purple AI system
-      const welcomeRoom = await prisma.chatRoom.findFirst({
-        where: { name: "Welcome - Purple AI", type: "DM" },
-      });
+      // Find the PurpleAI user
+      const aiUser = await prisma.user.findUnique({ where: { username: "PurpleAI" } });
       
-      let roomId = welcomeRoom?.id;
-      if (!roomId) {
-        const newRoom = await prisma.chatRoom.create({
-          data: { name: "Welcome - Purple AI", type: "DM", description: "Welcome messages and bot chat" },
+      if (aiUser) {
+        // Create a proper DM room between the new user and PurpleAI
+        const dmId = `dm_${[user.id, aiUser.id].sort().join("_")}`;
+        const dmRoom = await prisma.chatRoom.upsert({
+          where: { id: dmId },
+          update: {},
+          create: {
+            id: dmId,
+            name: "DM",
+            type: "DM",
+            memberCount: 2,
+            members: {
+              create: [
+                { userId: user.id },
+                { userId: aiUser.id },
+              ],
+            },
+          },
         });
-        roomId = newRoom.id;
-      }
-      
-      // Add user to the room
-      await prisma.chatRoomUser.create({
-        data: { roomId, userId: user.id },
-      }).catch(() => {});
-      
-      // Send welcome message
-      await prisma.chatMessage.create({
-        data: {
-          content: `💜 Welcome to Purple Hackers, @${username}!
+
+        // Send welcome message from PurpleAI
+        await prisma.chatMessage.create({
+          data: {
+            content: `💜 Welcome to Purple Hackers, @${username}!
 
 Here's what you need to know:
 
@@ -167,20 +187,22 @@ Here's what you need to know:
 3. Check out the Resource Library for free tools and courses
 4. Visit the Job Board for tech opportunities
 5. Share what you're building in Project Showcase
+6. Connect your Acemiles OS API key in Tools to unlock 90+ cybersecurity tools
 
 If you have any questions, just reply here and I'll help you out! 🤖
 
 — Purple AI`,
-          roomId,
-          userId: user.id,
-          type: "bot",
-        },
-      }).catch(() => {});
+            roomId: dmRoom.id,
+            userId: aiUser.id,
+            type: "text",
+          },
+        }).catch(() => {});
+      }
     } catch (e) {
       console.error("Welcome DM failed:", e);
     }
 
-    return NextResponse.json({ id: user.id, username: user.username }, { status: 201 });
+    return NextResponse.json({ id: user.id, username: user.username, resetToken }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: "Registration failed" }, { status: 500 });
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkAndAwardVerified } from "@/lib/reputation";
 
 export async function POST(req: Request) {
   try {
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
         if (post.authorId !== myId) {
           if (type === "up") {
             await prisma.user.update({ where: { id: post.authorId }, data: { reputation: { increment: 1 } } }).catch(() => {});
+            await checkAndAwardVerified(post.authorId);
           } else if (existing.type === "up") {
             await prisma.user.update({ where: { id: post.authorId }, data: { reputation: { decrement: 1 } } }).catch(() => {});
           }
@@ -61,6 +63,7 @@ export async function POST(req: Request) {
       // Reputation: +1 to author for upvote
       if (type === "up" && post.authorId !== myId) {
         await prisma.user.update({ where: { id: post.authorId }, data: { reputation: { increment: 1 } } }).catch(() => {});
+        await checkAndAwardVerified(post.authorId);
       }
     }
 

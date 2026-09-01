@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, AlertCircle, Check, Camera, Trash2, ShieldAlert, Moon, Sun, Tag } from "lucide-react";
+import { Loader2, Save, AlertCircle, Check, Camera, Trash2, ShieldAlert, Moon, Sun, Tag, KeyRound } from "lucide-react";
+import Link from "next/link";
 
 const ROLE_TAGS = ["Beginner", "Frontend", "Backend", "Full Stack", "Cybersec", "Designer", "Penetration Tester", "DevOps", "Mobile Dev", "Data Science", "OSINT", "Reverse Engineer"];
 
@@ -17,6 +18,9 @@ export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -189,6 +193,44 @@ export default function Settings() {
           {saving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Changes</>}
         </button>
       </form>
+
+      {/* Recovery Token */}
+      <div className="card p-5 mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <KeyRound size={18} className="text-purple-400" />
+          <h2 className="text-sm font-semibold text-white">Recovery Token</h2>
+        </div>
+        <p className="text-xs text-slate-500 mb-3">Keep this safe — you need it to reset your password if you forget it.</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 p-3 rounded-lg bg-slate-800/80 border border-purple-500/20 text-purple-300 text-xs font-mono break-all">
+            {showToken ? (resetToken || "Loading...") : "•••••••••••••••••••••"}
+          </code>
+          <button type="button" onClick={() => {
+            if (!showToken) {
+              fetch("/api/auth/my-token").then(r => r.json()).then(d => setResetToken(d.token || "Not available"));
+            }
+            setShowToken(!showToken);
+          }} className="btn-ghost shrink-0 text-xs">
+            {showToken ? "Hide" : "Show"}
+          </button>
+          <button type="button" onClick={() => {
+            if (!resetToken) {
+              fetch("/api/auth/my-token").then(r => r.json()).then(d => {
+                if (d.token) { setResetToken(d.token); navigator.clipboard.writeText(d.token); }
+              });
+            } else {
+              navigator.clipboard.writeText(resetToken);
+            }
+            setCopiedToken(true);
+            setTimeout(() => setCopiedToken(false), 1500);
+          }} className="btn-ghost shrink-0 text-xs">
+            {copiedToken ? "✓" : "Copy"}
+          </button>
+        </div>
+        <Link href="/reset-password" className="text-xs text-purple-400 hover:text-purple-300 mt-3 inline-block">
+          Need to reset? Use your token here →
+        </Link>
+      </div>
 
       <div className="card p-6 mt-6 border-red-500/20">
         <div className="flex items-center gap-2 mb-3">

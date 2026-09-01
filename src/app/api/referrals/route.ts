@@ -22,8 +22,9 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
   
-  // Check if I have the Purple O.G badge
+  // Check badges
   const hasPurpleOG = (me?.badges || []).some(b => b.includes("Purple O.G") || b.includes("Purple OG"));
+  const hasPurpleBadge = (me?.badges || []).some(b => b.includes("Purple Badge") || b.includes("💜🏅"));
   
   // Who referred me
   let referrer = null;
@@ -39,7 +40,7 @@ export async function GET() {
     referralCount: me?.referralCount || 0,
     referrals,
     hasPurpleOG,
+    hasPurpleBadge,
     referrer,
-    nextBadgeAt: 3, // Need 3 referrals for Purple O.G
   });
 }

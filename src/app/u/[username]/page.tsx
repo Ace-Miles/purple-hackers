@@ -90,7 +90,7 @@ export default function Profile() {
               {user.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : user.username.slice(0, 2).toUpperCase()}
             </div>
             {(user as any).isFounder && (
-              <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shadow-lg ring-2 ring-[#0f0f1e]">
+              <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-lg ring-2 ring-[#0f0f1e]" style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}>
                 <Crown size={14} className="text-white" />
               </div>
             )}
@@ -112,6 +112,9 @@ export default function Profile() {
                 )}
                 {user.isFounder && (
                   <span className="role-badge role-badge-founder shrink-0" title="Founder"><Crown size={10} /></span>
+                )}
+                {(user as any).referralCount >= 5 && !user.isFounder && (
+                  <span className="role-badge role-badge-referral shrink-0" title={`${(user as any).referralCount} referrals`}><Award size={10} /></span>
                 )}
               </div>
               <div className="text-right shrink-0">

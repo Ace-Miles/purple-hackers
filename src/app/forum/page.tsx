@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { MessageSquare, Eye, Pin, Lock, Plus, Terminal, Loader2, Flame, Search, Filter, Heart, ThumbsDown, Shield, Crown } from "lucide-react";
+import { MessageSquare, Eye, Pin, Lock, Plus, Terminal, Loader2, Flame, Search, Filter, Heart, ThumbsDown, Shield, Crown, BadgeCheck, Award } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { timeAgo } from "@/lib/utils";
@@ -180,6 +180,9 @@ export default function Forum() {
                     title="Founder">
                     {revealedBadges.has(`founder-${post.id}`) ? "FOUNDER" : <Crown size={10} />}
                   </button>
+                )}
+                {post.author?.verified && !post.author?.isFounder && (
+                  <span title="Verified Member (999+ rep)" className="shrink-0"><BadgeCheck size={14} className="text-purple-400" /></span>
                 )}
                 {post.isOwnPost === false && post.isFollowingAuthor !== null && (
                   <button

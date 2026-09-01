@@ -18,14 +18,33 @@ export function MediaLightbox({ src, type }: { src: string; type: "image" | "vid
   if (!open) return null;
 
   return (
-    <div className="lightbox-overlay" onClick={() => setOpen(false)}>
-      <button className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all z-10">
+    <div
+      className="lightbox-overlay"
+      onClick={() => setOpen(false)}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", animation: "fadeIn 0.2s ease" }}
+    >
+      <button
+        className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-all z-10"
+        onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+        style={{ position: "absolute", top: "1rem", right: "1rem" }}
+      >
         <X size={24} className="text-white" />
       </button>
       {type === "image" ? (
-        <img src={src} alt="media" onClick={e => e.stopPropagation()} />
+        <img
+          src={src}
+          alt="media"
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: "95vw", maxHeight: "90vh", objectFit: "contain", borderRadius: "0.5rem", pointerEvents: "auto" }}
+        />
       ) : (
-        <video src={src} controls autoPlay onClick={e => e.stopPropagation()} />
+        <video
+          src={src}
+          controls
+          autoPlay
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: "95vw", maxHeight: "90vh", objectFit: "contain", borderRadius: "0.5rem", pointerEvents: "auto" }}
+        />
       )}
     </div>
   );

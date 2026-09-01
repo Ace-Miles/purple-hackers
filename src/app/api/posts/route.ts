@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkAndAwardVerified } from "@/lib/reputation";
 
 export async function GET(req: Request) {
   try {
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
         reputation: { increment: 5 },
       },
     });
+    await checkAndAwardVerified((session.user as any).id);
     await prisma.category.update({
       where: { id: category.id },
       data: { postsCount: { increment: 1 } },

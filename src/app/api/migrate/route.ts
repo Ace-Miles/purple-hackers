@@ -11,6 +11,8 @@ export async function GET() {
       `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false`,
       `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT 'dark'`,
       `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS "referredBy" TEXT`,
+      `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS "acemilesOsConnected" BOOLEAN DEFAULT false`,
+      `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS "acemilesOsApiKey" TEXT`,
       `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS "referralCount" INTEGER DEFAULT 0`,
       `ALTER TABLE purple_hackers.users ADD COLUMN IF NOT EXISTS "referralCode" TEXT UNIQUE`,
     ];
@@ -92,23 +94,29 @@ export async function GET() {
       results.push("✓ rules table created");
     } catch (e: any) { results.push(`✗ rules: ${e.message.slice(0, 80)}`); }
 
-    // 7. Update founder account
+    // 7. Delete test admin account (admin@purplehackers.dev) — delete related records first
     try {
-      await prisma.$executeRawUnsafe(`
-        UPDATE purple_hackers.users 
-        SET reputation = 999, 
-            title = 'Founder & Creator', 
-            "isFounder" = true, 
-            role = 'FOUNDER',
-            verified = true,
-            "roleTag" = 'Penetration Tester',
-            badges = ARRAY['👑 Founder', '🏆 Legend', '💎 Diamond', '🔥 Trendsetter', '⭐ Expert', '✅ Verified', '💜 Purple O.G']::TEXT[]
-        WHERE email = 'admin@purplehackers.dev'
-      `);
-      results.push("✓ Founder updated with v2 fields");
-    } catch (e: any) { results.push(`✗ Founder update: ${e.message.slice(0, 100)}`); }
+      const adminExists = await prisma.$queryRawUnsafe(`SELECT id FROM purple_hackers.users WHERE email = $1`, "admin@purplehackers.dev") as any[];
+      if (adminExists.length > 0) {
+        const adminId = adminExists[0].id;
+        // Delete all related records to avoid FK constraint violations
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.chat_messages WHERE "userId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.chat_room_users WHERE "userId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.comments WHERE "authorId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.reactions WHERE "userId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.posts WHERE "authorId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.notifications WHERE "userId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.sessions WHERE "userId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.accounts WHERE "userId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.referrals WHERE "referrerId" = $1 OR "referredId" = $1`, adminId).catch(() => {});
+        await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.users WHERE id = $1`, adminId);
+        results.push("✓ Test admin account (admin@purplehackers.dev) deleted");
+      } else {
+        results.push("→ Test admin already removed");
+      }
+    } catch (e: any) { results.push(`⚠ Admin deletion: ${e.message.slice(0, 100)}`); }
 
-    // Also set jameskamiles@gmail.com as founder if exists
+    // Update jameskamiles@gmail.com as the sole Founder
     try {
       await prisma.$executeRawUnsafe(`
         UPDATE purple_hackers.users 
@@ -169,17 +177,24 @@ export async function GET() {
       results.push("→ Showcase category exists");
     }
 
-    // 11. Add AI chat room
-    const aiRoom = await prisma.$queryRawUnsafe(`SELECT id FROM purple_hackers.chat_rooms WHERE name = 'Purple AI'`) as any[];
-    if (aiRoom.length === 0) {
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO purple_hackers.chat_rooms (id, name, type, description, icon) VALUES (gen_random_uuid()::text, $1, $2::purple_hackers."ChatRoomType", $3, $4)`,
-        "Purple AI", "PUBLIC", "Chat with Purple AI — your community assistant. Ask about rules, get help, or just chat!", "Bot"
-      );
-      results.push("✓ Purple AI chat room created");
-    } else {
-      results.push("→ Purple AI room exists");
-    }
+    // 11. Remove Purple AI from chat rooms (now lives in DMs) + create PurpleAI user
+    try {
+      await prisma.$executeRawUnsafe(`DELETE FROM purple_hackers.chat_rooms WHERE name = 'Purple AI'`);
+      results.push("✓ Purple AI removed from chat rooms (moved to DM)");
+    } catch (e: any) { results.push(`→ Purple AI room cleanup: ${e.message.slice(0, 60)}`); }
+
+    try {
+      const aiUserExists = await prisma.$queryRawUnsafe(`SELECT id FROM purple_hackers.users WHERE username = $1`, "PurpleAI") as any[];
+      if (aiUserExists.length === 0) {
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO purple_hackers.users (id, username, email, password, role, status, title, verified, avatar, reputation) VALUES (gen_random_uuid()::text, $1, $2, $3, 'FOUNDER', 'ACTIVE', 'Purple AI Assistant', true, $4, 999)`,
+          "PurpleAI", "purple.ai@purplehackers.dev", "$2a$10$purple.ai.no.password.NEEDED", "https://media.base44.com/images/public/6a7e7c4a775e3b29b6007659/74b60b6b8_generated_image.png"
+        );
+        results.push("✓ PurpleAI user created (for DM)");
+      } else {
+        results.push("→ PurpleAI user exists");
+      }
+    } catch (e: any) { results.push(`⚠ PurpleAI user: ${e.message.slice(0, 80)}`); }
 
     // 12. Generate referral codes for existing users
     try {

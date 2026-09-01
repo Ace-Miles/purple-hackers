@@ -64,6 +64,10 @@ export default function Login() {
           </button>
         </form>
 
+        <p className="text-center text-xs text-slate-500 mt-3">
+          <Link href="/reset-password" className="text-purple-400 hover:text-purple-300">Forgot password? Use recovery token</Link>
+        </p>
+
         <p className="text-center text-sm text-slate-400 mt-4">
           No account? <Link href="/register" className="text-purple-400 hover:text-purple-300 font-semibold">Join the community</Link>
         </p>

@@ -15,7 +15,7 @@ export async function GET() {
       include: {
         room: {
           include: {
-            members: { include: { user: { select: { id: true, username: true, avatar: true, role: true } } } },
+            members: { include: { user: { select: { id: true, username: true, avatar: true, role: true, verified: true } } } },
             messages: { orderBy: { createdAt: "desc" }, take: 1 },
           },
         },
@@ -38,6 +38,23 @@ export async function GET() {
       const bt = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
       return bt - at;
     });
+
+    // Always include Purple AI at top if not already in conversations
+    const hasPurpleAI = conversations.some(c => c.otherUser?.username === "PurpleAI");
+    if (!hasPurpleAI) {
+      const aiUser = await prisma.user.findUnique({
+        where: { username: "PurpleAI" },
+        select: { id: true, username: true, avatar: true, role: true, verified: true },
+      }).catch(() => null);
+      if (aiUser) {
+        conversations.unshift({
+          roomId: "" as string,
+          otherUser: aiUser,
+          lastMessage: null as any,
+          unread: false,
+        });
+      }
+    }
 
     return NextResponse.json({ conversations });
   } catch (error) {

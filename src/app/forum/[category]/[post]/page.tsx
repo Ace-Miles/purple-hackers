@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowUp, ArrowDown, MessageSquare, Eye, Pin, Lock, Loader2, Send, AlertCircle, Edit, Trash2, Save, X, Flag, BadgeCheck } from "lucide-react";
+import { ArrowUp, ArrowDown, MessageSquare, Eye, Pin, Lock, Loader2, Send, AlertCircle, Edit, Trash2, Save, X, Flag, BadgeCheck, Heart, ThumbsDown } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MediaLightbox, useLightbox } from "@/components/MediaLightbox";
+import { MentionText } from "@/components/MentionText";
 import { timeAgo } from "@/lib/utils";
 
 export default function PostDetail() {
@@ -116,6 +117,16 @@ export default function PostDetail() {
     else setError("Failed to save edit");
   };
 
+  const voteComment = async (commentId: string, type: "up" | "down") => {
+    if (!session) { router.push("/login"); return; }
+    await fetch("/api/comments/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId, type }),
+    });
+    fetchData();
+  };
+
   const deleteComment = async (id: string) => {
     if (!confirm("Delete this comment?")) return;
     const res = await fetch(`/api/comments/${id}`, { method: "DELETE" });
@@ -182,7 +193,7 @@ export default function PostDetail() {
               {post.author.avatar ? <img src={post.author.avatar} alt="" className="w-full h-full object-cover" /> : post.author.username.slice(0, 2).toUpperCase()}
             </div>
             <span className="font-medium text-purple-400 truncate">{post.author.username}</span>
-            {post.author.isFounder && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[9px]">FOUNDER</span>}
+            {post.author.isFounder && <span className="badge bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[9px]">👑 FOUNDER</span>}
             {!post.author.isFounder && post.author.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
             {post.author.role === "MODERATOR" && <span className="badge badge-mod text-[9px]">MOD</span>}
             {post.author.verified && <BadgeCheck size={12} className="text-purple-400" />}
@@ -193,15 +204,15 @@ export default function PostDetail() {
         </div>
 
         {!editing && (
-          <div className="prose prose-invert prose-sm max-w-none break-words">
+          <div className="prose prose-invert prose-base max-w-none break-words text-[17px] leading-[1.7]">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
               code({ node, className, children, ...props }: any) {
                 const isInline = !className?.includes("language-");
                 return isInline ? (
-                  <code className="px-1.5 py-0.5 rounded bg-slate-800 text-purple-300 text-sm break-words" {...props}>{children}</code>
+                  <code className="px-1.5 py-0.5 rounded bg-slate-800 text-purple-300 text-[14px] break-words" {...props}>{children}</code>
                 ) : (
                   <pre className="bg-slate-900 border border-slate-700 rounded-lg p-4 overflow-x-auto">
-                    <code className="text-sm text-slate-300" {...props}>{children}</code>
+                    <code className="text-[14px] text-slate-300" {...props}>{children}</code>
                   </pre>
                 );
               }
@@ -214,9 +225,13 @@ export default function PostDetail() {
           <div className="grid grid-cols-2 gap-2 mt-4">
             {post.mediaUrls.map((url: string, i: number) => (
               url.match(/\.(mp4|webm|mov)$/i) ? (
-                <video key={i} src={url} controls className="rounded-lg w-full max-h-80 object-contain bg-black cursor-pointer" onClick={() => openLightbox(url, "video")} />
+                <div key={i} className="relative rounded-lg overflow-hidden bg-black cursor-pointer group" onClick={() => openLightbox(url, "video")}>
+                  <video src={url} controls className="rounded-lg w-full max-h-80 object-contain" />
+                </div>
               ) : (
-                <img key={i} src={url} alt="" className="rounded-lg w-full max-h-80 object-contain bg-black cursor-pointer" onClick={() => openLightbox(url, "image")} />
+                <div key={i} className="rounded-lg overflow-hidden bg-black cursor-pointer" onClick={() => openLightbox(url, "image")}>
+                  <img key={i} src={url} alt="" className="rounded-lg w-full max-h-80 object-contain" />
+                </div>
               )
             ))}
           </div>
@@ -232,11 +247,13 @@ export default function PostDetail() {
 
         {/* Actions */}
         <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-800 flex-wrap">
-          <button onClick={() => vote(post.id, "up")} className="flex items-center gap-1 text-sm text-slate-400 hover:text-purple-400 transition-all">
-            <ArrowUp size={16} /> {post.upvotes}
+          <button onClick={() => vote(post.id, "up")} className="flex items-center gap-1.5 group">
+            <Heart size={18} className={`like-btn ${post.myReaction === "up" ? "liked" : "text-slate-400 group-hover:text-purple-300"}`} fill={post.myReaction === "up" ? "currentColor" : "none"} />
+            <span className={`text-sm font-medium ${post.myReaction === "up" ? "text-purple-300" : "text-slate-500"}`}>{post.upvotes}</span>
           </button>
-          <button onClick={() => vote(post.id, "down")} className="flex items-center gap-1 text-sm text-slate-400 hover:text-red-400 transition-all">
-            <ArrowDown size={16} /> {post.downvotes}
+          <button onClick={() => vote(post.id, "down")} className="flex items-center gap-1.5 group">
+            <ThumbsDown size={16} className={`dislike-btn ${post.myReaction === "down" ? "disliked" : "text-slate-400 group-hover:text-rose-300"}`} fill={post.myReaction === "down" ? "currentColor" : "none"} />
+            <span className={`text-sm font-medium ${post.myReaction === "down" ? "text-rose-400" : "text-slate-500"}`}>{post.downvotes}</span>
           </button>
           <span className="flex items-center gap-1 text-sm text-slate-400"><MessageSquare size={16} /> {(data.comments || []).length}</span>
           {canModify && !editing && (
@@ -288,7 +305,7 @@ export default function PostDetail() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Link href={`/u/${c.author.username}`} className="text-sm font-medium text-purple-400 hover:text-purple-300">{c.author.username}</Link>
-                    {c.author.isFounder && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[9px]">FOUNDER</span>}
+                    {c.author.isFounder && <span className="badge bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[9px]">👑 FOUNDER</span>}
                     {!c.author.isFounder && c.author.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
                     {c.author.role === "MODERATOR" && <span className="badge badge-mod text-[9px]">MOD</span>}
                     <span className="text-xs text-slate-500">{timeAgo(c.createdAt)}</span>
@@ -304,15 +321,22 @@ export default function PostDetail() {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-slate-300 prose prose-invert prose-sm max-w-none break-words">
+                    <div className="text-[15px] text-slate-300 prose prose-invert prose-sm max-w-none break-words leading-[1.65]">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{c.content}</ReactMarkdown>
                     </div>
                   )}
 
                   <div className="flex items-center gap-3 mt-2 flex-wrap">
-                    <button className="flex items-center gap-1 text-xs text-slate-500 hover:text-purple-400"><ArrowUp size={12} /> {c.upvotes}</button>
+                    <button onClick={() => voteComment(c.id, "up")} className="flex items-center gap-1 group">
+                      <Heart size={14} className={`like-btn ${c.myReaction === "up" ? "liked" : "text-slate-500 group-hover:text-purple-300"}`} fill={c.myReaction === "up" ? "currentColor" : "none"} />
+                      <span className={`text-xs ${c.myReaction === "up" ? "text-purple-300" : "text-slate-500"}`}>{c.upvotes || 0}</span>
+                    </button>
+                    <button onClick={() => voteComment(c.id, "down")} className="flex items-center gap-1 group">
+                      <ThumbsDown size={13} className={`dislike-btn ${c.myReaction === "down" ? "disliked" : "text-slate-500 group-hover:text-rose-300"}`} fill={c.myReaction === "down" ? "currentColor" : "none"} />
+                      <span className={`text-xs ${c.myReaction === "down" ? "text-rose-400" : "text-slate-500"}`}>{c.downvotes || 0}</span>
+                    </button>
                     {session && (
-                      <button onClick={() => setReplyTo(replyTo === c.id ? null : c.id)} className="text-xs text-slate-500 hover:text-purple-400">Reply</button>
+                      <button onClick={() => { setReplyTo(replyTo === c.id ? null : c.id); setReplyContent(replyTo === c.id ? "" : `@${c.author.username} `); }} className="text-xs text-slate-500 hover:text-purple-400">Reply</button>
                     )}
                     {session && myId !== c.authorId && (
                       <button onClick={() => openReport(c.id, "COMMENT")} className="text-xs text-slate-500 hover:text-yellow-400">Report</button>

@@ -47,6 +47,7 @@ model User {
   referredBy    String?   // userId of the person who referred them
   referralCount Int       @default(0)  // how many people they've referred
   referralCode  String?   @unique  // their unique referral code
+  passwordResetToken String? @unique // recovery token for password reset
 
   posts         Post[]
   comments      Comment[]

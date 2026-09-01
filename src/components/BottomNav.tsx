@@ -2,8 +2,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Home, Users, Plus, BookOpen, User as UserIcon } from "lucide-react";
+import { Home, Wrench, Plus, Gift, User as UserIcon } from "lucide-react";
 
 export function BottomNav() {
   const { data: session, status } = useSession();
@@ -32,8 +31,8 @@ export function BottomNav() {
         <Home size={22} strokeWidth={isActive("/forum") ? 2.5 : 2} />
       </Link>
 
-      <Link href="/resources" className={`bottom-nav-item ${isActive("/resources") ? "active" : ""}`}>
-        <BookOpen size={22} strokeWidth={isActive("/resources") ? 2.5 : 2} />
+      <Link href="/tools" onClick={(e) => guardedNav("/tools", e)} className={`bottom-nav-item ${isActive("/tools") ? "active" : ""}`}>
+        <Wrench size={22} strokeWidth={isActive("/tools") ? 2.5 : 2} />
       </Link>
 
       <Link
@@ -45,11 +44,11 @@ export function BottomNav() {
         </div>
       </Link>
 
-      <Link href="/chat" onClick={(e) => guardedNav("/chat", e)} className={`bottom-nav-item ${isActive("/chat") ? "active" : ""}`}>
-        <Users size={22} strokeWidth={isActive("/chat") ? 2.5 : 2} />
+      <Link href="/referrals" onClick={(e) => guardedNav("/referrals", e)} className={`bottom-nav-item ${isActive("/referrals") ? "active" : ""}`}>
+        <Gift size={22} strokeWidth={isActive("/referrals") ? 2.5 : 2} />
       </Link>
 
-      {/* Profile — replaced Messages here (like Instagram) */}
+      {/* Profile */}
       <Link
         href={status === "authenticated" ? `/u/${(session?.user as any)?.username || ""}` : "/login"}
         onClick={(e) => guardedNav("/u", e)}

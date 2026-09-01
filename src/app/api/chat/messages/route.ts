@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { processMentions } from "@/lib/mentions";
+import { getPurpleAIResponse } from "@/lib/purpleAI";
 
 export async function GET(req: Request) {
   try {
@@ -33,16 +35,48 @@ export async function POST(req: Request) {
     if (!roomId) return NextResponse.json({ error: "Missing room" }, { status: 400 });
     if (!content?.trim() && !mediaUrl) return NextResponse.json({ error: "Missing content or media" }, { status: 400 });
 
+    const myId = (session.user as any).id;
+    const myUsername = (session.user as any).username;
+    const trimmedContent = content?.trim() || "";
+
     const message = await prisma.chatMessage.create({
       data: {
-        content: content?.trim() || "",
+        content: trimmedContent,
         mediaUrl: mediaUrl || null,
         type: type || (mediaUrl ? "media" : "text"),
-        userId: (session.user as any).id,
+        userId: myId,
         roomId,
       },
       include: { user: { select: { id: true, username: true, avatar: true, role: true, isFounder: true } } },
     });
+
+    // Detect @mentions in the room and notify those users
+    if (trimmedContent) {
+      await processMentions({
+        content: trimmedContent,
+        actorId: myId,
+        actorUsername: myUsername,
+        notifTitle: `${myUsername} mentioned you in chat`,
+        link: `/chat/${roomId}`,
+      });
+    }
+
+    // If Purple AI was mentioned in the room, have it respond right in the room
+    if (trimmedContent && /@PurpleAI\b/i.test(trimmedContent)) {
+      const purpleAI = await prisma.user.findUnique({ where: { username: "PurpleAI" } });
+      if (purpleAI) {
+        const cleanQuestion = trimmedContent.replace(/@PurpleAI\b/gi, "").trim() || trimmedContent;
+        const aiReply = await getPurpleAIResponse(cleanQuestion, "You were mentioned in a group chat room — respond directly and naturally, as if joining the conversation.");
+        await prisma.chatMessage.create({
+          data: {
+            content: aiReply,
+            type: "text",
+            userId: purpleAI.id,
+            roomId,
+          },
+        }).catch(() => {});
+      }
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getPurpleAIResponse } from "@/lib/purpleAI";
 
 function dmRoomId(a: string, b: string) {
   return `dm_${[a, b].sort().join("_")}`;
@@ -36,7 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ username
     const myId = (session.user as any).id;
 
     const { username } = await params;
-    const otherUser = await prisma.user.findUnique({ where: { username }, select: { id: true, username: true, avatar: true, role: true, status: true } });
+    const otherUser = await prisma.user.findUnique({ where: { username }, select: { id: true, username: true, avatar: true, role: true, status: true, verified: true } });
     if (!otherUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
     if (otherUser.id === myId) return NextResponse.json({ error: "Cannot message yourself" }, { status: 400 });
 
@@ -55,7 +56,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ username
       include: { user: { select: { id: true, username: true, avatar: true, role: true } } },
     });
 
-    // Mark as read
     await prisma.chatRoomUser.updateMany({
       where: { roomId: room.id, userId: myId },
       data: { lastReadAt: new Date() },
@@ -94,15 +94,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ usernam
       include: { user: { select: { id: true, username: true, avatar: true, role: true } } },
     });
 
-    await prisma.notification.create({
-      data: {
-        userId: otherUser.id,
-        type: "dm",
-        title: `New message from ${(session.user as any).username}`,
-        content: mediaUrl ? "📷 Sent a photo" : content.slice(0, 100),
-        link: `/messages/${(session.user as any).username}`,
-      },
-    }).catch(() => {});
+    // If messaging Purple AI, trigger AI response
+    const isPurpleAI = otherUser.username === "PurpleAI";
+    if (isPurpleAI && content?.trim()) {
+      // Don't send notification to the AI user — instead trigger AI response
+      const aiReply = await getPurpleAIResponse(content.trim());
+      await prisma.chatMessage.create({
+        data: {
+          content: aiReply,
+          type: "text",
+          userId: otherUser.id,
+          roomId: room.id,
+        },
+      });
+    } else {
+      // Normal notification
+      await prisma.notification.create({
+        data: {
+          userId: otherUser.id,
+          type: "dm",
+          title: `New message from ${(session.user as any).username}`,
+          content: mediaUrl ? "📷 Sent a photo" : content.slice(0, 100),
+          link: `/messages/${(session.user as any).username}`,
+        },
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {

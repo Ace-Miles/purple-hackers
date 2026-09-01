@@ -6,33 +6,72 @@ import { prisma } from "@/lib/prisma";
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
     const { slug } = await params;
+    const session = await getServerSession(authOptions);
+    const myId = (session?.user as any)?.id || null;
+
     const post = await prisma.post.findUnique({
       where: { slug },
       include: {
-        author: { select: { id: true, username: true, avatar: true, role: true, reputation: true, title: true, joinedAt: true, isFounder: true } },
+        author: { select: { id: true, username: true, avatar: true, role: true, reputation: true, title: true, joinedAt: true, isFounder: true, verified: true, roleTag: true } },
         category: { select: { id: true, name: true, slug: true } },
       },
     });
     if (!post || post.isDeleted) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    // Increment views (real count - one per page load)
     await prisma.post.update({ where: { id: post.id }, data: { views: { increment: 1 } } }).catch(() => {});
 
     const comments = await prisma.comment.findMany({
       where: { postId: post.id, isDeleted: false, parentId: null },
       orderBy: { createdAt: "asc" },
       include: {
-        author: { select: { id: true, username: true, avatar: true, role: true, isFounder: true } },
+        author: { select: { id: true, username: true, avatar: true, role: true, isFounder: true, verified: true, roleTag: true } },
         replies: {
           where: { isDeleted: false },
           orderBy: { createdAt: "asc" },
-          include: { author: { select: { id: true, username: true, avatar: true, role: true, isFounder: true } } },
+          include: { author: { select: { id: true, username: true, avatar: true, role: true, isFounder: true, verified: true, roleTag: true } } },
         },
       },
     });
 
-    return NextResponse.json({ post, comments });
+    // Get my reaction for the post
+    let myReaction: string | null = null;
+    if (myId) {
+      const reaction = await prisma.reaction.findUnique({
+        where: { userId_postId: { userId: myId, postId: post.id } },
+        select: { type: true },
+      }).catch(() => null);
+      myReaction = reaction?.type || null;
+    }
+
+    // Get my reactions for comments
+    let commentReactions: Record<string, string> = {};
+    if (myId && comments.length > 0) {
+      const commentIds = comments.flatMap((c: any) => [c.id, ...(c.replies?.map((r: any) => r.id) || [])]);
+      if (commentIds.length > 0) {
+        try {
+          const reactions = await prisma.$queryRawUnsafe(
+            `SELECT "commentId", type FROM purple_hackers.comment_reactions WHERE "userId" = $1 AND "commentId" = ANY($2::text[])`,
+            myId, commentIds
+          ) as any[];
+          for (const r of reactions) {
+            commentReactions[r.commentId] = r.type;
+          }
+        } catch {}
+      }
+    }
+
+    // Attach myReaction to comments
+    const commentsWithReactions = comments.map((c: any) => ({
+      ...c,
+      myReaction: commentReactions[c.id] || null,
+      replies: c.replies?.map((r: any) => ({
+        ...r,
+        myReaction: commentReactions[r.id] || null,
+      })) || [],
+    }));
+
+    return NextResponse.json({ post: { ...post, myReaction }, comments: commentsWithReactions });
   } catch (error) {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
