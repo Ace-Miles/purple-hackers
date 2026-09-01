@@ -13,6 +13,7 @@ export async function GET(req: Request) {
     const category = searchParams.get("category");
     const skip = Math.max(0, parseInt(searchParams.get("skip") || "0", 10) || 0);
     const take = Math.min(50, Math.max(1, parseInt(searchParams.get("take") || "30", 10) || 30));
+    const showcase = searchParams.get("showcase");
 
     const orderBy: any = sort === "top"
       ? [{ isPinned: "desc" }, { upvotes: "desc" }]
@@ -24,6 +25,9 @@ export async function GET(req: Request) {
     if (category && category !== "all") {
       where.category = { slug: category };
     }
+    if (showcase === "true") {
+      where.isShowcase = true;
+    }
 
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
@@ -32,7 +36,7 @@ export async function GET(req: Request) {
         skip,
         take,
         include: {
-          author: { select: { id: true, username: true, avatar: true, role: true, title: true, isFounder: true } },
+          author: { select: { id: true, username: true, avatar: true, role: true, title: true, isFounder: true, roleTag: true, verified: true } },
           category: { select: { id: true, name: true, slug: true } },
           _count: { select: { comments: { where: { isDeleted: false } } } },
         },
@@ -84,7 +88,7 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { title, content, categorySlug, tags, mediaUrls } = await req.json();
+    const { title, content, categorySlug, tags, mediaUrls, isShowcase } = await req.json();
     if (!title || (!content && !(mediaUrls?.length)) || !categorySlug) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
@@ -105,12 +109,17 @@ export async function POST(req: Request) {
         authorId: (session.user as any).id,
         categoryId: category.id,
         tags: tags || [],
+        isShowcase: isShowcase || false,
       },
     });
 
+    // Increment user's posts count AND reputation
     await prisma.user.update({
       where: { id: (session.user as any).id },
-      data: { postsCount: { increment: 1 } },
+      data: {
+        postsCount: { increment: 1 },
+        reputation: { increment: 5 },
+      },
     });
     await prisma.category.update({
       where: { id: category.id },

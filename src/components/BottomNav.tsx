@@ -3,27 +3,19 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Home, Users, Plus, Wrench, MessageCircle } from "lucide-react";
+import { Home, Users, Plus, BookOpen, User as UserIcon } from "lucide-react";
 
 export function BottomNav() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const [dmCount, setDmCount] = useState(0);
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      const poll = () => {
-        fetch("/api/dm/count").then(r => r.json()).then(d => setDmCount(d.count || 0)).catch(() => {});
-      };
-      poll();
-      const interval = setInterval(poll, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [status]);
 
   // Hide on auth pages
   if (pathname === "/login" || pathname === "/register") return null;
+
+  // Hide bottom nav in chat and DM pages so the input bar can sit at the bottom properly
+  const isChatPage = pathname?.startsWith("/chat") || pathname?.startsWith("/messages");
+  if (isChatPage) return null;
 
   const guardedNav = (href: string, e: React.MouseEvent) => {
     if (status !== "authenticated") {
@@ -40,8 +32,8 @@ export function BottomNav() {
         <Home size={22} strokeWidth={isActive("/forum") ? 2.5 : 2} />
       </Link>
 
-      <Link href="/chat" onClick={(e) => guardedNav("/chat", e)} className={`bottom-nav-item ${isActive("/chat") ? "active" : ""}`}>
-        <Users size={22} strokeWidth={isActive("/chat") ? 2.5 : 2} />
+      <Link href="/resources" className={`bottom-nav-item ${isActive("/resources") ? "active" : ""}`}>
+        <BookOpen size={22} strokeWidth={isActive("/resources") ? 2.5 : 2} />
       </Link>
 
       <Link
@@ -53,16 +45,20 @@ export function BottomNav() {
         </div>
       </Link>
 
-      <Link href="/tools" className={`bottom-nav-item ${isActive("/tools") ? "active" : ""}`}>
-        <Wrench size={22} strokeWidth={isActive("/tools") ? 2.5 : 2} />
+      <Link href="/chat" onClick={(e) => guardedNav("/chat", e)} className={`bottom-nav-item ${isActive("/chat") ? "active" : ""}`}>
+        <Users size={22} strokeWidth={isActive("/chat") ? 2.5 : 2} />
       </Link>
 
-      <Link href="/messages" onClick={(e) => guardedNav("/messages", e)} className={`bottom-nav-item relative ${isActive("/messages") ? "active" : ""}`}>
-        <MessageCircle size={22} strokeWidth={isActive("/messages") ? 2.5 : 2} />
-        {dmCount > 0 && (
-          <span className="absolute top-0 right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] flex items-center justify-center text-white font-bold">
-            {dmCount > 9 ? "9+" : dmCount}
-          </span>
+      {/* Profile — replaced Messages here (like Instagram) */}
+      <Link
+        href={status === "authenticated" ? `/u/${(session?.user as any)?.username || ""}` : "/login"}
+        onClick={(e) => guardedNav("/u", e)}
+        className={`bottom-nav-item ${isActive("/u") ? "active" : ""}`}
+      >
+        {session && (session?.user as any)?.avatar ? (
+          <img src={(session?.user as any).avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+        ) : (
+          <UserIcon size={22} strokeWidth={isActive("/u") ? 2.5 : 2} />
         )}
       </Link>
     </nav>

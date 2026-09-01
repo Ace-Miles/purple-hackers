@@ -73,8 +73,9 @@ export default function AdminUsers() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-white">{u.username}</span>
-                  {u.isFounder && <span className="role-badge role-badge-founder text-[9px]" title="Founder"><Crown size={10} /></span>}
-                  {u.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
+                  {u.isFounder && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[9px]">FOUNDER</span>}
+                  {!u.isFounder && u.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
+                  {!u.isFounder && u.role === "FOUNDER" && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[9px]">FOUNDER</span>}
                   {u.role === "MODERATOR" && <span className="badge badge-mod text-[9px]">MOD</span>}
                   {u.status === "BANNED" && <span className="badge bg-red-500/20 text-red-400 text-[9px]">BANNED</span>}
                 </div>

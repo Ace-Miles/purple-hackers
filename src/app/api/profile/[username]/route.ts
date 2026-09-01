@@ -10,7 +10,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ username
 
     const user = await prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, bio: true, reputation: true, role: true, title: true, github: true, website: true, location: true, postsCount: true, commentsCount: true, followersCount: true, followingCount: true, joinedAt: true, lastSeen: true, avatar: true, isFounder: true, badges: true, acemilesOsConnected: true },
+      select: { id: true, username: true, bio: true, reputation: true, role: true, title: true, github: true, website: true, location: true, postsCount: true, commentsCount: true, followersCount: true, followingCount: true, joinedAt: true, lastSeen: true, avatar: true, isFounder: true, badges: true, acemilesOsConnected: true, roleTag: true, verified: true, referralCode: true, referralCount: true },
     });
     if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

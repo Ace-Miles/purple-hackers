@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Send, Loader2, AlertCircle, ImagePlus, X } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
+import { MediaLightbox, useLightbox } from "@/components/MediaLightbox";
 
 export default function DmThread() {
   const { username } = useParams() as { username: string };
@@ -21,6 +22,7 @@ export default function DmThread() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasInitiallyScrolled = useRef(false);
   const router = useRouter();
+  const { lightbox, openLightbox } = useLightbox();
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return; }
@@ -99,7 +101,7 @@ export default function DmThread() {
   const myId = (session?.user as any)?.id;
 
   return (
-    <div className="max-w-2xl mx-auto px-3 py-3 flex flex-col" style={{ height: "calc(100dvh - 3.5rem - env(safe-area-inset-bottom))" }}>
+    <div className="max-w-2xl mx-auto px-3 py-3 flex flex-col" style={{ height: "calc(100dvh - 3.5rem)" }}>
       {/* Header */}
       <div className="flex items-center gap-3 pb-3 border-b border-slate-800 shrink-0">
         <div className="w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold text-white overflow-hidden shrink-0">
@@ -119,9 +121,9 @@ export default function DmThread() {
             <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[75%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                 {m.mediaUrl && (
-                  <div className="rounded-2xl overflow-hidden border border-slate-700 max-w-[220px] mb-1">
+                  <div className="rounded-2xl overflow-hidden border border-slate-700 max-w-[220px] mb-1 cursor-pointer" onClick={() => openLightbox(m.mediaUrl, m.mediaUrl.match(/\.(mp4|webm|mov)$/i) ? "video" : "image")}>
                     {m.mediaUrl.match(/\.(mp4|webm|mov)$/i) ? (
-                      <video src={m.mediaUrl} controls className="w-full max-h-56 object-cover" />
+                      <video src={m.mediaUrl} className="w-full max-h-56 object-cover" />
                     ) : (
                       <img src={m.mediaUrl} alt="" className="w-full max-h-56 object-cover" />
                     )}
@@ -155,8 +157,8 @@ export default function DmThread() {
         </div>
       )}
 
-      {/* Input — sticky bar */}
-      <div className="chat-input-bar shrink-0">
+      {/* Input — sticky at bottom, no overlap since bottom nav is hidden */}
+      <div className="shrink-0 sticky bottom-0 bg-[#0b0b16]/95 backdrop-blur border-t border-purple-500/15 px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         <div className="flex gap-2 items-end">
           <input ref={fileInputRef} type="file" accept="image/*,video/*" hidden onChange={e => handleFile(e.target.files)} />
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading || sending}
@@ -171,6 +173,7 @@ export default function DmThread() {
           </button>
         </div>
       </div>
+      {lightbox && <MediaLightbox src={lightbox.src} type={lightbox.type} />}
     </div>
   );
 }

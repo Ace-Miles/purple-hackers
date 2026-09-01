@@ -40,6 +40,14 @@ model User {
   acemilesOsConnected Boolean @default(false)
   acemilesOsApiKey    String?
 
+  // New fields for v2
+  roleTag       String?   // Beginner, Frontend, Backend, Cybersec, Designer, Pentester, etc.
+  verified      Boolean   @default(false)
+  theme         String    @default("dark")  // "dark" or "light"
+  referredBy    String?   // userId of the person who referred them
+  referralCount Int       @default(0)  // how many people they've referred
+  referralCode  String?   @unique  // their unique referral code
+
   posts         Post[]
   comments      Comment[]
   chatMessages  ChatMessage[]
@@ -53,6 +61,10 @@ model User {
   accounts      Account[]
   following     Follow[] @relation("Follower")
   followers     Follow[] @relation("Following")
+  resources     Resource[]
+  jobs          Job[]
+  referrals     Referral[] @relation("Referrer")
+  referredByRel Referral[] @relation("Referred")
 
   @@schema("purple_hackers")
   @@map("users")
@@ -136,6 +148,7 @@ model Post {
   isPinned    Boolean  @default(false)
   isLocked    Boolean  @default(false)
   isDeleted   Boolean  @default(false)
+  isShowcase  Boolean  @default(false)
   editedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now())
@@ -144,6 +157,7 @@ model Post {
   category    Category   @relation(fields: [categoryId], references: [id])
   comments    Comment[]
   reactions   Reaction[]
+  reports     Report[]
   
   @@index([categoryId])
   @@index([authorId])
@@ -259,6 +273,7 @@ model Report {
   createdAt   DateTime     @default(now())
   
   reporter    User    @relation(fields: [reporterId], references: [id])
+  post        Post?   @relation(fields: [targetId], references: [id])
   
   @@schema("purple_hackers")
   @@map("reports")
@@ -312,6 +327,73 @@ model Notification {
   
   @@schema("purple_hackers")
   @@map("notifications")
+}
+
+// ===== RESOURCE LIBRARY =====
+model Resource {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  url         String
+  type        String   @default("tool")  // tool, course, ebook, other
+  category    String   @default("general")
+  submittedBy String
+  isPinned    Boolean  @default(false)
+  upvotes     Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  submitter   User     @relation(fields: [submittedBy], references: [id])
+  
+  @@schema("purple_hackers")
+  @@map("resources")
+}
+
+// ===== JOB BOARD =====
+model Job {
+  id          String   @id @default(cuid())
+  title       String
+  company     String
+  description String
+  type        String   @default("full-time")  // full-time, part-time, internship, contract, freelance
+  location    String   @default("remote")
+  url         String?
+  salary      String?
+  tags        String[] @default([])
+  postedBy    String
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  poster      User     @relation(fields: [postedBy], references: [id])
+  
+  @@schema("purple_hackers")
+  @@map("jobs")
+}
+
+// ===== REFERRAL SYSTEM =====
+model Referral {
+  id          String   @id @default(cuid())
+  referrerId  String
+  referredId  String
+  createdAt   DateTime @default(now())
+  
+  referrer    User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred    User     @relation("Referred", fields: [referredId], references: [id], onDelete: Cascade)
+  
+  @@unique([referredId])
+  @@schema("purple_hackers")
+  @@map("referrals")
+}
+
+// ===== COMMUNITY RULES =====
+model Rule {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  @@schema("purple_hackers")
+  @@map("rules")
 }
 
 // ===== ENUMS =====

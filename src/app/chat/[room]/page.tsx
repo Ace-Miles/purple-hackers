@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Send, Loader2, Hash, Users, ImagePlus, X, Shield, Crown } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
+import { MediaLightbox, useLightbox } from "@/components/MediaLightbox";
 
 export default function ChatRoom() {
   const { room: roomId } = useParams() as { room: string };
@@ -19,6 +20,7 @@ export default function ChatRoom() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { lightbox, openLightbox } = useLightbox();
   const lastScrollHeight = useRef(0);
   const isAtBottom = useRef(true);
 
@@ -122,7 +124,7 @@ export default function ChatRoom() {
   if (!room) return <div className="text-center py-20 text-slate-400">Room not found</div>;
 
   return (
-    <div className="max-w-4xl mx-auto px-3 py-3 flex flex-col" style={{ height: "calc(100dvh - 3.5rem - env(safe-area-inset-bottom))" }}>
+    <div className="max-w-4xl mx-auto px-3 py-3 flex flex-col" style={{ height: "calc(100dvh - 3.5rem)" }}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-800 shrink-0">
         <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0">
@@ -185,9 +187,9 @@ export default function ChatRoom() {
                     </div>
                   )}
                   {msg.mediaUrl && (
-                    <div className="mt-1 rounded-lg overflow-hidden border border-slate-700 max-w-[240px]">
+                    <div className="mt-1 rounded-lg overflow-hidden border border-slate-700 max-w-[240px] cursor-pointer" onClick={() => openLightbox(msg.mediaUrl, msg.mediaUrl.match(/\.(mp4|webm|mov)$/i) || (msg.type === "media" && msg.mediaUrl?.includes("video")) ? "video" : "image")}>
                       {msg.mediaUrl.match(/\.(mp4|webm|mov)$/i) || msg.type === "media" && msg.mediaUrl?.includes("video") ? (
-                        <video src={msg.mediaUrl} controls className="w-full max-h-48 object-cover" />
+                        <video src={msg.mediaUrl} className="w-full max-h-48 object-cover" />
                       ) : (
                         <img src={msg.mediaUrl} alt="" className="w-full max-h-48 object-cover" />
                       )}
@@ -219,8 +221,8 @@ export default function ChatRoom() {
         </div>
       )}
 
-      {/* Input — sticky bar, doesn't cause page scroll */}
-      <div className="chat-input-bar shrink-0">
+      {/* Input — sticky at bottom of flex container, no overlap since bottom nav is hidden */}
+      <div className="shrink-0 sticky bottom-0 bg-[#0b0b16]/95 backdrop-blur border-t border-purple-500/15 px-1 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         <div className="flex gap-2 items-end">
           <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple hidden
             onChange={e => handleFiles(e.target.files)} />
@@ -243,6 +245,7 @@ export default function ChatRoom() {
           </button>
         </div>
       </div>
+      {lightbox && <MediaLightbox src={lightbox.src} type={lightbox.type} />}
     </div>
   );
 }

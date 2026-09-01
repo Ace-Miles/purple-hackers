@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowUp, ArrowDown, MessageSquare, Eye, Pin, Lock, Loader2, Send, AlertCircle, Edit, Trash2, Save, X } from "lucide-react";
+import { ArrowUp, ArrowDown, MessageSquare, Eye, Pin, Lock, Loader2, Send, AlertCircle, Edit, Trash2, Save, X, Flag, BadgeCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { MediaLightbox, useLightbox } from "@/components/MediaLightbox";
 import { timeAgo } from "@/lib/utils";
 
 export default function PostDetail() {
@@ -24,6 +25,12 @@ export default function PostDetail() {
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState("");
   const router = useRouter();
+  const { lightbox, openLightbox, closeLightbox } = useLightbox();
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDesc, setReportDesc] = useState("");
+  const [reporting, setReporting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ id: string; type: string } | null>(null);
 
   const fetchData = () => {
     fetch(`/api/posts/${postSlug}`).then(r => r.json()).then(d => {
@@ -33,6 +40,26 @@ export default function PostDetail() {
   };
 
   useEffect(() => { fetchData(); }, [postSlug]);
+
+  const submitReport = async () => {
+    if (!reportTarget || !reportReason) return;
+    setReporting(true);
+    try {
+      await fetch("/api/reports", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId: reportTarget.id, targetType: reportTarget.type, reason: reportReason, description: reportDesc }),
+      });
+      setShowReport(false); setReportReason(""); setReportDesc(""); setReportTarget(null);
+      alert("Report submitted. Our moderators will review it.");
+    } catch { alert("Failed to submit report"); }
+    setReporting(false);
+  };
+
+  const openReport = (id: string, type: string) => {
+    if (!session) { router.push("/login"); return; }
+    setReportTarget({ id, type });
+    setShowReport(true);
+  };
 
   const submitComment = async (parentId?: string) => {
     if (!session) { router.push("/login"); return; }
@@ -155,8 +182,10 @@ export default function PostDetail() {
               {post.author.avatar ? <img src={post.author.avatar} alt="" className="w-full h-full object-cover" /> : post.author.username.slice(0, 2).toUpperCase()}
             </div>
             <span className="font-medium text-purple-400 truncate">{post.author.username}</span>
-            {post.author.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
+            {post.author.isFounder && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[9px]">FOUNDER</span>}
+            {!post.author.isFounder && post.author.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
             {post.author.role === "MODERATOR" && <span className="badge badge-mod text-[9px]">MOD</span>}
+            {post.author.verified && <BadgeCheck size={12} className="text-purple-400" />}
           </Link>
           <span>{timeAgo(post.createdAt)}</span>
           {post.editedAt && <span className="italic">(edited)</span>}
@@ -185,9 +214,9 @@ export default function PostDetail() {
           <div className="grid grid-cols-2 gap-2 mt-4">
             {post.mediaUrls.map((url: string, i: number) => (
               url.match(/\.(mp4|webm|mov)$/i) ? (
-                <video key={i} src={url} controls className="rounded-lg w-full max-h-80 object-contain bg-black" />
+                <video key={i} src={url} controls className="rounded-lg w-full max-h-80 object-contain bg-black cursor-pointer" onClick={() => openLightbox(url, "video")} />
               ) : (
-                <img key={i} src={url} alt="" className="rounded-lg w-full max-h-80 object-contain bg-black" />
+                <img key={i} src={url} alt="" className="rounded-lg w-full max-h-80 object-contain bg-black cursor-pointer" onClick={() => openLightbox(url, "image")} />
               )
             ))}
           </div>
@@ -217,6 +246,11 @@ export default function PostDetail() {
               )}
               <button onClick={deletePost} className="flex items-center gap-1 text-xs text-slate-400 hover:text-red-400 transition-all"><Trash2 size={14} /> Delete</button>
             </div>
+          )}
+          {!isAuthor && session && (
+            <button onClick={() => openReport(post.id, "POST")} className="flex items-center gap-1 text-xs text-slate-500 hover:text-yellow-400 transition-all ml-auto">
+              <Flag size={14} /> Report
+            </button>
           )}
         </div>
       </article>
@@ -254,7 +288,8 @@ export default function PostDetail() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Link href={`/u/${c.author.username}`} className="text-sm font-medium text-purple-400 hover:text-purple-300">{c.author.username}</Link>
-                    {c.author.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
+                    {c.author.isFounder && <span className="badge bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[9px]">FOUNDER</span>}
+                    {!c.author.isFounder && c.author.role === "ADMIN" && <span className="badge badge-admin text-[9px]">ADMIN</span>}
                     {c.author.role === "MODERATOR" && <span className="badge badge-mod text-[9px]">MOD</span>}
                     <span className="text-xs text-slate-500">{timeAgo(c.createdAt)}</span>
                     {c.editedAt && <span className="text-xs text-slate-600 italic">(edited)</span>}
@@ -278,6 +313,9 @@ export default function PostDetail() {
                     <button className="flex items-center gap-1 text-xs text-slate-500 hover:text-purple-400"><ArrowUp size={12} /> {c.upvotes}</button>
                     {session && (
                       <button onClick={() => setReplyTo(replyTo === c.id ? null : c.id)} className="text-xs text-slate-500 hover:text-purple-400">Reply</button>
+                    )}
+                    {session && myId !== c.authorId && (
+                      <button onClick={() => openReport(c.id, "COMMENT")} className="text-xs text-slate-500 hover:text-yellow-400">Report</button>
                     )}
                     {isCommentAuthor && editingComment !== c.id && (
                       <button onClick={() => { setEditingComment(c.id); setEditCommentText(c.content); }} className="text-xs text-slate-500 hover:text-purple-400">Edit</button>
@@ -333,6 +371,32 @@ export default function PostDetail() {
           );
         })}
       </div>
+      {/* Lightbox */}
+      {lightbox && <MediaLightbox src={lightbox.src} type={lightbox.type} />}
+
+      {/* Report modal */}
+      {showReport && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setShowReport(false)}>
+          <div className="card p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-4">Report {reportTarget?.type === "POST" ? "Post" : "Comment"}</h3>
+            <select value={reportReason} onChange={e => setReportReason(e.target.value)} className="input-dark mb-3">
+              <option value="">Select reason...</option>
+              <option value="SPAM">Spam</option>
+              <option value="HARASSMENT">Harassment</option>
+              <option value="ILLEGAL_CONTENT">Illegal Content</option>
+              <option value="MALWARE">Malware</option>
+              <option value="NSFW">NSFW</option>
+              <option value="OFF_TOPIC">Off Topic</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <textarea value={reportDesc} onChange={e => setReportDesc(e.target.value)} className="input-dark min-h-[80px] resize-y mb-3" placeholder="Additional details (optional)..." />
+            <div className="flex gap-2">
+              <button onClick={submitReport} disabled={!reportReason || reporting} className="btn-purple flex-1">{reporting ? "Submitting..." : "Submit Report"}</button>
+              <button onClick={() => setShowReport(false)} className="btn-ghost">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

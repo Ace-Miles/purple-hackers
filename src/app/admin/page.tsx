@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Shield, Users, Flag, Ban, Loader2, Activity, AlertTriangle, TrendingUp, MessageSquare } from "lucide-react";
+import { Shield, Users, Flag, Ban, Loader2, Activity, AlertTriangle, TrendingUp, MessageSquare, Crown } from "lucide-react";
 
 export default function AdminPanel() {
   const { data: session, status } = useSession();
@@ -36,8 +36,8 @@ export default function AdminPanel() {
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="flex items-center gap-2 mb-6">
         <Shield size={24} className="text-red-400" />
-        <h1 className="text-2xl font-bold text-white">Admin Portal</h1>
-        <span className="badge badge-admin">ADMIN</span>
+        <h1 className="text-2xl font-bold text-white">{(session?.user as any)?.role === "FOUNDER" || (session?.user as any)?.isFounder ? "Founder Portal" : "Admin Portal"}</h1>
+        <span className={`badge ${(session?.user as any)?.role === "FOUNDER" || (session?.user as any)?.isFounder ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "badge-admin"}`}>{(session?.user as any)?.role === "FOUNDER" || (session?.user as any)?.isFounder ? "FOUNDER" : "ADMIN"}</span>
       </div>
 
       {/* Stats grid */}
@@ -74,6 +74,10 @@ export default function AdminPanel() {
         <Link href="/admin/bans" className="card p-4 glass-hover transition-all flex items-center gap-3">
           <Ban size={20} className="text-red-400" />
           <div><div className="font-semibold text-white text-sm">Ban Management</div><div className="text-xs text-slate-500">Active and lifted bans</div></div>
+        </Link>
+        <Link href="/admin/rules" className="card p-4 glass-hover transition-all flex items-center gap-3">
+          <Shield size={20} className="text-purple-400" />
+          <div><div className="font-semibold text-white text-sm">Community Rules</div><div className="text-xs text-slate-500">Manage rules page</div></div>
         </Link>
       </div>
 

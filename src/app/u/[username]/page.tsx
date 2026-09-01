@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Loader2, GitBranch, Globe, MapPin, Calendar, Terminal, MessageSquare, ArrowUp, Send, UserPlus, UserCheck, Shield, Crown, Award, Zap } from "lucide-react";
+import { Loader2, GitBranch, Globe, MapPin, Calendar, Terminal, MessageSquare, ArrowUp, Send, UserPlus, UserCheck, Shield, Crown, Award, Zap, BadgeCheck, Flag, Users } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
 
 function getRepLevel(rep: number) {
@@ -14,6 +14,21 @@ function getRepLevel(rep: number) {
   if (rep >= 5) return { label: "Rookie", color: "text-slate-400", icon: "🌱" };
   return { label: "Newbie", color: "text-slate-600", icon: "✨" };
 }
+
+const ROLE_TAG_STYLES: Record<string, { color: string; bg: string; icon: string }> = {
+  "Beginner": { color: "text-green-400", bg: "bg-green-500/10 border-green-500/20", icon: "🌱" },
+  "Frontend": { color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20", icon: "🎨" },
+  "Backend": { color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", icon: "⚙️" },
+  "Cybersec": { color: "text-red-400", bg: "bg-red-500/10 border-red-500/20", icon: "🛡️" },
+  "Designer": { color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/20", icon: "✏️" },
+  "Penetration Tester": { color: "text-orange-400", bg: "bg-orange-500/10 border-orange-500/20", icon: "⚔️" },
+  "Full Stack": { color: "text-purple-400", bg: "bg-purple-500/10 border-purple-500/20", icon: "🔧" },
+  "DevOps": { color: "text-cyan-400", bg: "bg-cyan-500/10 border-cyan-500/20", icon: "🚀" },
+  "Mobile Dev": { color: "text-indigo-400", bg: "bg-indigo-500/10 border-indigo-500/20", icon: "📱" },
+  "Data Science": { color: "text-teal-400", bg: "bg-teal-500/10 border-teal-500/20", icon: "📊" },
+  "OSINT": { color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/20", icon: "🔍" },
+  "Reverse Engineer": { color: "text-rose-400", bg: "bg-rose-500/10 border-rose-500/20", icon: "🔬" },
+};
 
 export default function Profile() {
   const { username } = useParams() as { username: string };
@@ -60,19 +75,23 @@ export default function Profile() {
   const isSelf = (session?.user as any)?.username === user.username;
   const repLevel = getRepLevel(user.reputation || 0);
   const badges: string[] = (user as any).badges || [];
+  const roleTagStyle = user.roleTag ? ROLE_TAG_STYLES[user.roleTag] : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       {/* Profile header */}
       <div className="card p-6 mb-6">
+        {/* Cover gradient */}
+        <div className="h-20 -mx-6 -mt-6 mb-4 rounded-t-xl purple-gradient opacity-20" />
+        
         <div className="flex flex-col sm:flex-row items-start gap-4">
-          <div className="relative shrink-0">
-            <div className="w-16 h-16 rounded-2xl bg-purple-600 flex items-center justify-center text-2xl font-bold text-white overflow-hidden">
+          <div className="relative shrink-0 -mt-8">
+            <div className="w-20 h-20 rounded-2xl bg-purple-600 flex items-center justify-center text-2xl font-bold text-white overflow-hidden ring-4 ring-[#0f0f1e]">
               {user.avatar ? <img src={user.avatar} alt="" className="w-full h-full object-cover" /> : user.username.slice(0, 2).toUpperCase()}
             </div>
             {(user as any).isFounder && (
-              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
-                <Crown size={12} className="text-white" />
+              <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shadow-lg ring-2 ring-[#0f0f1e]">
+                <Crown size={14} className="text-white" />
               </div>
             )}
           </div>
@@ -80,15 +99,19 @@ export default function Profile() {
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2 mb-1 min-w-0">
                 <h1 className="text-xl font-bold text-white truncate">{user.username}</h1>
-                {user.role === "ADMIN" && (
-                  <span className="role-badge role-badge-admin shrink-0" title="Admin">
-                    <Shield size={10} />
+                {user.verified && (
+                  <span className="shrink-0" title="Verified Member">
+                    <BadgeCheck size={18} className="text-purple-400" />
                   </span>
                 )}
-                {(user as any).isFounder && (
-                  <span className="role-badge role-badge-founder shrink-0" title="Founder">
-                    <Crown size={10} />
-                  </span>
+                {user.role === "ADMIN" && !user.isFounder && (
+                  <span className="role-badge role-badge-admin shrink-0" title="Admin"><Shield size={10} /></span>
+                )}
+                {user.role === "MODERATOR" && !user.isFounder && (
+                  <span className="badge badge-mod text-[9px] shrink-0">MOD</span>
+                )}
+                {user.isFounder && (
+                  <span className="role-badge role-badge-founder shrink-0" title="Founder"><Crown size={10} /></span>
                 )}
               </div>
               <div className="text-right shrink-0">
@@ -96,7 +119,16 @@ export default function Profile() {
                 <div className="text-[10px] text-slate-500">REPUTATION</div>
               </div>
             </div>
+            
             {user.title && <p className="text-sm text-purple-400 mb-1 break-words">{user.title}</p>}
+            
+            {/* Role tag */}
+            {roleTagStyle && (
+              <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${roleTagStyle.bg} ${roleTagStyle.color} mb-2`}>
+                {roleTagStyle.icon} {user.roleTag}
+              </span>
+            )}
+            
             {user.bio && <p className="text-sm text-slate-400 mb-2 break-words">{user.bio}</p>}
             
             {/* Reputation level bar */}
@@ -114,6 +146,7 @@ export default function Profile() {
               {user.github && <a href={`https://github.com/${user.github}`} target="_blank" className="flex items-center gap-1 hover:text-purple-400 break-all"><GitBranch size={12} /> {user.github}</a>}
               {user.website && <a href={user.website} target="_blank" className="flex items-center gap-1 hover:text-purple-400 break-all"><Globe size={12} /> {user.website}</a>}
             </div>
+            
             <div className="flex items-center gap-4 mb-3">
               <button onClick={() => setTab("stats")} className="text-sm hover:text-purple-400 transition-colors">
                 <span className="font-bold text-white">{user.followersCount}</span> <span className="text-slate-500">Followers</span>
@@ -122,6 +155,8 @@ export default function Profile() {
                 <span className="font-bold text-white">{user.followingCount}</span> <span className="text-slate-500">Following</span>
               </button>
             </div>
+            
+            {/* Action buttons */}
             {!isSelf && session && (
               <div className="flex items-center gap-2">
                 <button onClick={toggleFollow} disabled={followBusy}
@@ -136,6 +171,10 @@ export default function Profile() {
                     <><UserPlus size={13} /> Follow</>
                   )}
                 </button>
+                <Link href={`/messages/${username}`}
+                  className="inline-flex items-center gap-2 text-xs px-4 py-1.5 rounded-lg font-medium border border-purple-500/20 text-purple-400 hover:bg-purple-500/10 transition-all">
+                  <MessageSquare size={13} /> Message
+                </Link>
               </div>
             )}
           </div>

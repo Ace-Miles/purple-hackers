@@ -2,11 +2,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, AlertCircle, Check, Camera, Trash2, ShieldAlert } from "lucide-react";
+import { Loader2, Save, AlertCircle, Check, Camera, Trash2, ShieldAlert, Moon, Sun, Tag } from "lucide-react";
+
+const ROLE_TAGS = ["Beginner", "Frontend", "Backend", "Full Stack", "Cybersec", "Designer", "Penetration Tester", "DevOps", "Mobile Dev", "Data Science", "OSINT", "Reverse Engineer"];
 
 export default function Settings() {
   const { data: session, status } = useSession();
-  const [form, setForm] = useState({ bio: "", title: "", github: "", website: "", location: "", avatar: "" });
+  const [form, setForm] = useState({ bio: "", title: "", github: "", website: "", location: "", avatar: "", roleTag: "", theme: "dark" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -23,12 +25,34 @@ export default function Settings() {
     if (status === "authenticated" && session) {
       fetch("/api/profile/me").then(r => r.json()).then(d => {
         if (d.user) {
-          setForm({ bio: d.user.bio || "", title: d.user.title || "", github: d.user.github || "", website: d.user.website || "", location: d.user.location || "", avatar: d.user.avatar || "" });
+          setForm({
+            bio: d.user.bio || "", title: d.user.title || "", github: d.user.github || "",
+            website: d.user.website || "", location: d.user.location || "", avatar: d.user.avatar || "",
+            roleTag: d.user.roleTag || "", theme: d.user.theme || "dark",
+          });
+          // Apply theme on load
+          applyTheme(d.user.theme || "dark");
         }
         setLoading(false);
       }).catch(() => setLoading(false));
     }
   }, [status, session, router]);
+
+  const applyTheme = (theme: string) => {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  };
+
+  const handleThemeToggle = (theme: string) => {
+    setForm(prev => ({ ...prev, theme }));
+    applyTheme(theme);
+    // Save immediately
+    fetch("/api/profile/me", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme }),
+    }).catch(() => {});
+  };
 
   const handleAvatarUpload = async (file: File | undefined) => {
     if (!file) return;
@@ -43,12 +67,8 @@ export default function Settings() {
       if (res.ok) {
         setForm(prev => ({ ...prev, avatar: d.url }));
         await fetch("/api/profile/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatar: d.url }) });
-      } else {
-        setError(d.error || "Upload failed");
-      }
-    } catch {
-      setError("Upload failed");
-    }
+      } else { setError(d.error || "Upload failed"); }
+    } catch { setError("Upload failed"); }
     setUploadingAvatar(false);
   };
 
@@ -59,8 +79,7 @@ export default function Settings() {
     setSuccess(false);
     try {
       const res = await fetch("/api/profile/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       if (!res.ok) { setError("Failed to save"); setSaving(false); return; }
@@ -75,18 +94,11 @@ export default function Settings() {
     setDeleting(true);
     setDeleteError("");
     try {
-      const res = await fetch("/api/account", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "DELETE" }),
-      });
+      const res = await fetch("/api/account", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: "DELETE" }) });
       const d = await res.json();
       if (!res.ok) { setDeleteError(d.error || "Failed to delete account"); setDeleting(false); return; }
       await signOut({ callbackUrl: "/" });
-    } catch {
-      setDeleteError("Something went wrong");
-      setDeleting(false);
-    }
+    } catch { setDeleteError("Something went wrong"); setDeleting(false); }
   };
 
   if (loading || status === "loading") return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-purple-500" /></div>;
@@ -98,11 +110,44 @@ export default function Settings() {
     <div className="max-w-2xl mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold text-purple-gradient mb-6">Settings</h1>
 
+      {/* Theme toggle */}
+      <div className="card p-4 mb-6">
+        <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><Tag size={16} className="text-purple-400" /> Theme</h2>
+        <div className="flex gap-2">
+          <button onClick={() => handleThemeToggle("dark")}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${form.theme === "dark" ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-slate-700 text-slate-400 hover:bg-slate-800/50"}`}>
+            <Moon size={18} /> Dark
+          </button>
+          <button onClick={() => handleThemeToggle("light")}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${form.theme === "light" ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-slate-700 text-slate-400 hover:bg-slate-800/50"}`}>
+            <Sun size={18} /> Light
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-500 mt-2">Purple buttons and accents stay purple in both themes.</p>
+      </div>
+
+      {/* Role tag selector */}
+      <div className="card p-4 mb-6">
+        <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><Tag size={16} className="text-purple-400" /> Role Tag</h2>
+        <p className="text-xs text-slate-500 mb-3">Choose what you do so others can find you for help.</p>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setForm({ ...form, roleTag: "" })}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${!form.roleTag ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-slate-700 text-slate-400 hover:border-slate-600"}`}>
+            None
+          </button>
+          {ROLE_TAGS.map(tag => (
+            <button key={tag} onClick={() => setForm({ ...form, roleTag: tag })}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${form.roleTag === tag ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-slate-700 text-slate-400 hover:border-slate-600"}`}>
+              {tag}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <form onSubmit={handleSave} className="card p-6 space-y-4">
         {error && <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm break-words"><AlertCircle size={16} className="shrink-0" /> {error}</div>}
         {success && <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-sm"><Check size={16} /> Saved successfully</div>}
 
-        {/* Avatar */}
         <div className="flex items-center gap-4">
           <div className="relative w-20 h-20 rounded-2xl bg-purple-600 flex items-center justify-center text-2xl font-bold text-white shrink-0 overflow-hidden">
             {form.avatar ? <img src={form.avatar} alt="" className="w-full h-full object-cover" /> : username.slice(0, 2).toUpperCase()}
@@ -145,20 +190,16 @@ export default function Settings() {
         </button>
       </form>
 
-      {/* Danger Zone */}
       <div className="card p-6 mt-6 border-red-500/20">
         <div className="flex items-center gap-2 mb-3">
           <ShieldAlert size={18} className="text-red-400" />
           <h2 className="text-lg font-bold text-red-400">Danger Zone</h2>
         </div>
-        <p className="text-sm text-slate-400 mb-4">
-          Deleting your account is permanent. Your posts, comments, messages, and profile will be removed. This cannot be undone.
-        </p>
+        <p className="text-sm text-slate-400 mb-4">Deleting your account is permanent. Your posts, comments, messages, and profile will be removed. This cannot be undone.</p>
         {deleteError && <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm mb-3 break-words"><AlertCircle size={16} className="shrink-0" /> {deleteError}</div>}
         <label className="text-xs text-slate-400 mb-1.5 block">Type <span className="font-mono text-red-400">DELETE</span> to confirm</label>
         <div className="flex gap-2">
-          <input type="text" value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}
-            className="input-dark flex-1" placeholder="DELETE" />
+          <input type="text" value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)} className="input-dark flex-1" placeholder="DELETE" />
           <button type="button" onClick={deleteAccount} disabled={deleteConfirm !== "DELETE" || deleting}
             className="px-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-all shrink-0">
             {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}

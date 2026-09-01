@@ -10,7 +10,6 @@ img, video {
   height: auto;
 }
 
-
 @layer base {
   :root {
     --bg-primary: #0a0a0f;
@@ -30,6 +29,19 @@ img, video {
     --success: #22c55e;
     --warning: #f59e0b;
     --cyan: #06b6d4;
+  }
+
+  /* Light theme overrides — keep purple accents, change background/text */
+  html[data-theme="light"] {
+    --bg-primary: #f5f5f8;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #eeeef2;
+    --bg-card: #ffffff;
+    --text-primary: #1a1a2e;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e0e0e8;
+    --border-hover: #c0c0d0;
   }
 
   * { box-sizing: border-box; }
@@ -56,6 +68,10 @@ img, video {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(168, 85, 247, 0.1);
+  }
+  html[data-theme="light"] .glass {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(168, 85, 247, 0.15);
   }
 
   .glass-hover {
@@ -115,11 +131,17 @@ img, video {
     width: 100%;
     transition: all 0.2s;
   }
+  html[data-theme="light"] .input-dark {
+    background: rgba(240, 240, 245, 0.8);
+  }
   .input-dark:focus {
     outline: none;
     border-color: var(--purple);
     box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
     background: rgba(20, 20, 42, 0.8);
+  }
+  html[data-theme="light"] .input-dark:focus {
+    background: rgba(255, 255, 255, 1);
   }
   .input-dark::placeholder { color: var(--text-muted); }
 
@@ -170,6 +192,10 @@ img, video {
     justify-content: space-around;
     padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
   }
+  html[data-theme="light"] .bottom-nav {
+    background: rgba(255, 255, 255, 0.92);
+    border-top-color: rgba(168, 85, 247, 0.2);
+  }
 
   .bottom-nav-item {
     display: flex;
@@ -213,39 +239,8 @@ img, video {
     border: 1px solid var(--border);
   }
   .follow-btn.following:hover { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.3); }
-}
 
-/* Animations */
-.fade-in { animation: fadeIn 0.3s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(168, 85, 247, 0.2);
-  border-top-color: var(--purple);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Code blocks */
-pre {
-  background: #0a0a14 !important;
-  border: 1px solid rgba(168, 85, 247, 0.15) !important;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  overflow-x: auto;
-}
-pre code { color: #c084fc !important; font-size: 0.875rem; }
-
-.prose pre { background: #0a0a14 !important; }
-.prose code::before, .prose code::after { display: none !important; }
-.prose a { color: var(--purple-light) !important; }
-.prose blockquote { border-left-color: var(--purple) !important; }
-.prose hr { border-color: var(--border) !important; 
-
-  /* Back button — Acemiles OS style */
+  /* Back button */
   .back-arrow-btn {
     animation: backArrowSlide 0.25s ease-out;
   }
@@ -254,18 +249,31 @@ pre code { color: #c084fc !important; font-size: 0.875rem; }
     to { opacity: 1; transform: translateX(0); }
   }
 
-  /* Chat keyboard fix */
+  /* Chat input — must sit ABOVE bottom nav */
   .chat-input-bar {
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 0;
+    right: 0;
     background: rgba(11, 11, 22, 0.95);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid rgba(168, 85, 247, 0.15);
-    padding: 0.5rem 0.25rem calc(0.5rem + env(safe-area-inset-bottom));
+    padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+    z-index: 55; /* above bottom nav (z:50) */
+  }
+  html[data-theme="light"] .chat-input-bar {
+    background: rgba(255, 255, 255, 0.95);
+    border-top-color: rgba(168, 85, 247, 0.2);
+  }
+
+  /* When bottom nav is hidden (chat pages), chat input can be sticky instead */
+  .no-bottom-nav .chat-input-bar {
+    position: sticky;
     z-index: 10;
   }
 
-  /* Role badges — symbols that reveal on click */
+  /* Role badges */
   .role-badge {
     display: inline-flex;
     align-items: center;
@@ -296,4 +304,63 @@ pre code { color: #c084fc !important; font-size: 0.875rem; }
     letter-spacing: 0.05em;
   }
 
+  /* Image / video lightbox */
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    animation: fadeIn 0.2s ease;
+  }
+  .lightbox-overlay img,
+  .lightbox-overlay video {
+    max-width: 95vw;
+    max-height: 95vh;
+    object-fit: contain;
+    border-radius: 0.5rem;
+  }
 }
+
+/* Light theme navbar */
+html[data-theme="light"] nav.bg-\[\#0b0b16\],
+html[data-theme="light"] .bg-\[\#0b0b16\] {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(168, 85, 247, 0.15) !important;
+}
+html[data-theme="light"] .bg-\[\#0a0a0f\] {
+  background: #f5f5f8 !important;
+}
+
+/* Animations */
+.fade-in { animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Code blocks */
+pre {
+  background: #0a0a14 !important;
+  border: 1px solid rgba(168, 85, 247, 0.15) !important;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+pre code { color: #c084fc !important; font-size: 0.875rem; }
+
+.prose pre { background: #0a0a14 !important; }
+.prose code::before, .prose code::after { display: none !important; }
+.prose a { color: var(--purple-light) !important; }
+.prose blockquote { border-left-color: var(--purple) !important; }
+.prose hr { border-color: var(--border) !important; }

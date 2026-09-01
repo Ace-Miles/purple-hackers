@@ -24,12 +24,16 @@ export async function POST(req: Request) {
       },
     });
 
+    // Increment comments count AND reputation (+2 per comment)
     await prisma.user.update({
       where: { id: (session.user as any).id },
-      data: { commentsCount: { increment: 1 } },
+      data: {
+        commentsCount: { increment: 1 },
+        reputation: { increment: 2 },
+      },
     });
 
-    // Create notification for post author
+    // Create notification for post author + give them +1 reputation for engagement
     if (post.authorId !== (session.user as any).id) {
       await prisma.notification.create({
         data: {
@@ -40,6 +44,10 @@ export async function POST(req: Request) {
           link: `/forum/${post.categoryId}/${post.slug}`,
         },
       });
+      await prisma.user.update({
+        where: { id: post.authorId },
+        data: { reputation: { increment: 1 } },
+      }).catch(() => {});
     }
 
     return NextResponse.json({ comment }, { status: 201 });
