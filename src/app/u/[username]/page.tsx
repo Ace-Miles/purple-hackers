@@ -113,7 +113,7 @@ export default function Profile() {
                 {user.isFounder && (
                   <span className="role-badge role-badge-founder shrink-0" title="Founder"><Crown size={10} /></span>
                 )}
-                {(user as any).referralCount >= 5 && !user.isFounder && (
+                {(user as any).referralCount >= 5 && (
                   <span className="role-badge role-badge-referral shrink-0" title={`${(user as any).referralCount} referrals`}><Award size={10} /></span>
                 )}
               </div>

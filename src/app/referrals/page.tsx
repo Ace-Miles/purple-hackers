@@ -38,6 +38,7 @@ export default function ReferralsPage() {
   };
 
   const progressToOG = Math.min(100, (referralCount / 5) * 100);
+  const pastGoal = referralCount > 5;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -56,13 +57,13 @@ export default function ReferralsPage() {
             <h3 className="text-sm font-bold text-white">💜 Purple O.G Badge</h3>
             <p className="text-xs text-slate-500">Refer 5 members to unlock this exclusive badge</p>
           </div>
-          {hasPurpleOG && <span className="badge bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs">UNLOCKED</span>}
+          {hasPurpleOG && <span className="badge bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs">{pastGoal ? `+${referralCount - 5} BONUS` : "UNLOCKED"}</span>}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden">
             <div className="h-full purple-gradient transition-all duration-500" style={{ width: `${progressToOG}%` }} />
           </div>
-          <span className="text-xs font-medium text-slate-400">{Math.min(referralCount, 5)}/5</span>
+          <span className="text-xs font-medium text-slate-400">{referralCount}/5</span>
         </div>
       </div>
 
